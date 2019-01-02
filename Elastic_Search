@@ -1,0 +1,460 @@
+Elastic Search Doc
+
+1. To start elastic search in specific node name and cluster name
+	. elasticsearch -Ecluster.name=sysmaco_es -Enode.name=Hitman
+
+2. We need to clear the catch from realms -  that need to be check
+		Failed to clear cache for realms
+		
+3. localhost:9200 - To get the health of the node
+   http://localhost:9200/_cat/health?v&pretty -  To get the brief of "No of Nodes"/Node Data"/"Shards"/Status
+   		Green 
+		Yello
+		Red
+   
+   http://localhost:9200/_cat/nodes?v&pretty - To get the fail of node list/node replica
+
+4. To get the indicies configure in cluster 
+	curl -X GET http://localhost:9200/_cat/indices?v&pretty 
+	
+5. Create indices and type in elastic search
+	curl -X PUT 'http://localhost:9200/customer?&pretty' -- customer - is the index and pretty display the result in json format
+	
+	{
+	  "acknowledged" : true,
+	  "shards_acknowledged" : true,
+	  "index" : "customer"
+	}
+
+		
+	to check if index get created or not we need to do a request of created indices and give a result below 
+	
+	liveyoung@liveyoung-ThinkPad-E550 ~ $ curl -X GET 'http://localhost:9200/_cat/indices?v&pretty'
+Head >>	health status index    uuid                   pri rep docs.count docs.deleted store.size pri.store.size
+		yellow open   customer Jocxy7wBQs-6YdV9qjSdTw   5   1          0            0      1.1kb          1.1kb
+	    yellow open   products NjRnXWAhSj60wzp9yx7Tkg   5   1          0            0      1.1kb          1.1kb
+
+		If we go through the response it give some information 
+			1. docs.count - 0 means no document is their in ;customer' index
+			2. status - status of the indx is open/active
+			3. health - yellow - mean because we are working in single node structure that mean if it get failed process will get stopped. 
+			4. uuid - unique id of index. 
+			5 pri/rep- primary it will create a 5 shards and 1 replica
+			
+6. Now we are going to add document in indices in specific type providing the ID in resource URL
+
+	Method :- PUT  
+	URL - 'http://localhost:9200/products/mobile/5?&pretty'	
+	{
+	"name":"iphone7",
+	"carema":"12MP",
+	"storage":"256GB",
+	"display":"4.7inche",
+	"battery":"1,960mAH",
+	"price":80000,
+	"reviews":["Its easy to use","I am happy to get this","Idiot phone"]
+	}'
+	
+	Here we create a category/Type 'Mobile' under 'products' indices. The id of the item is '5' that we specifies
+	Note:- In 6.x version of elastic search we cannot add one than one type under single index.
+	
+	Response:-
+	
+	{
+	   "_index": "products",	- At which index get added 
+	   "_type": "mobile",		- Type of the document under it gets added
+	   "_id": "5",			- Id that we specify 
+	   "_version": 1,		- Its the first version. If we update the version will change 
+	   "result": "created",	- The operation that occur under the resource URL
+	   "_shards":    {
+		  "total": 2,			- This tells, under one shards( i.e one node and one replicala) one document added successfully 
+		  "successful": 1,
+		  "failed": 0
+	   },
+	   "_seq_no": 0,
+	   "_primary_term": 2
+	}
+	
+	
+7. Now we are going to add document in indices in specific type without providing the ID in resource URL
+	First of all we need to change the method type from PUT to POST because as per the document of POST it will give a different response type. I this case it generate 
+		the ID dynamic.
+	
+	Method :- POST  
+	URL - http://localhost:9200/products/mobile/5?&pretty	
+	{
+		"name":"MI Note 4",
+		"carema":"12MP",
+		"storage":"256GB",
+		"display":"4.7inche",
+		"battery":"1,960mAH",
+		"price":13000,
+		"reviews":["Its easy to use","I am happy to get this","Idiot phone"]
+	}
+	
+	Result
+	
+	{
+	   "_index": "products",
+	   "_type": "mobile",
+	   "_id": "QdLLAmgBMaTPkYkkL0eu",  - The dynamic ID get generated.
+	   "_version": 1,
+	   "result": "created",
+	   "_shards":    {
+		  "total": 2,
+		  "successful": 1,
+		  "failed": 0
+	   },
+	   "_seq_no": 2,
+	   "_primary_term": 2
+	}
+	
+8. Now we are going to retrieve the whole or the partial information of document
+
+	a. To retrieve the whole document - Here we specify the ID of document in resource URL
+	
+		Method :- GET  
+		URL - 'http://localhost:9200/products/mobile/5?&pretty' 	
+
+	Result:-
+	
+		{
+		   "_index": "products",
+		   "_type": "mobile",
+		   "_id": "1",
+		   "_version": 2,
+		   "found": true,		-  'found' tells that the document found under the index and type. 
+		   "_source":    {
+			  "name": "MI 4",
+			  "carema": "12MP",
+			  "storage": "256GB",
+			  "display": "4.7inche",
+			  "battery": "1,960mAH",
+			  "price": 17000,
+			  "reviews":       [
+				 "Its easy to use",
+				 "I am happy to get this",
+				 "Idiot phone"
+			  ]
+		   }
+		}
+			
+	b. If we don't want the whole document to be retrieve because the response cost much so in that scenario we add _source=false in resource URL.
+	
+		Method :- GET  
+		URL - 'http://localhost:9200/products/mobile/5?pretty&_source=false	
+		
+		Result 
+			{
+			   "_index": "products",
+			   "_type": "mobile",
+			   "_id": "1",
+			   "_version": 2,  
+			   "found": true - Just tell the document found under index and type
+			}
+			
+	c. If we want to retrieve only specific fields under the document then we can specify those fields under '_source' request param
+		
+		Method :- GET  
+		URL - 'http://localhost:9200/products/mobile/5?pretty&_source=storage,display
+			
+		Result
+			
+			{
+			   "_index": "products",
+			   "_type": "mobile",
+			   "_id": "1",
+			   "_version": 2,
+			   "found": true,
+			   "_source":    {
+				  "display": "4.7inche",		- Here you will see it only returns only the display and storage fields
+				  "storage": "256GB"
+			   }
+			}
+	
+9. Now we are going to update the whole document of partial of document
+
+	During the update we need to specify the document ID to which we are going to update otherwise it will create a new document
+	
+	a.	First we retrieve the document to compare with update one
+		
+		Method :- GET  
+		URL - 'http://localhost:9200/products/mobile/1?pretty
+		
+		Result
+			{
+			   "_index": "products",
+			   "_type": "mobile",
+			   "_id": "1",
+			   "_version": 2,
+			   "found": true,
+			   "_source":    {
+				  "name": "MI 4",
+				  "carema": "12MP",
+				  "storage": "256GB",
+				  "display": "4.7inche",
+				  "battery": "1,960mAH",
+				  "price": 17000,
+				  "reviews":       [
+					 "Its easy to use",
+					 "I am happy to get this",
+					 "Idiot phone"
+				  ]
+			   }
+			}
+		
+		Now we are going to update teh price and storage
+		
+		Method :- PUT  
+		URL - 'http://localhost:9200/products/mobile/1?pretty
+		{
+			"name": "MI 4",
+				  "carema": "12MP",
+				  "storage": "256GB",
+				  "display": "4.7inche",
+				  "battery": "1,960mAH",
+				  "price": 15000,
+				  "reviews":       [
+					 "Its easy to use",
+					 "I am happy to get this",
+					 "Idiot phone"
+				  ]
+		}
+		
+		Result 
+		
+		{
+		   "_index": "products",
+		   "_type": "mobile",
+		   "_id": "1",
+		   "_version": 3,			- Here the version of document is 3 i.e it get updated twice
+		   "result": "updated",		- Operation is update 
+		   "_shards":    {
+			  "total": 2,
+			  "successful": 1,
+			  "failed": 0
+		   },
+		   "_seq_no": 2,
+		   "_primary_term": 2
+		}
+		
+	b. Now we are going to partially update the document.
+		
+			We are going to add a color attribute to document. In that scenario the Method will be 'POST' and url will be http://localhost:9200/products/mobile/1/_update
+			
+			Method :- POST  
+			URL - 'http://localhost:9200/products/mobile/1/_update?pretty
+			
+			{
+				"doc":{
+					"color":"black"  - an new attribute get added to document
+				}
+			}
+			
+			Result
+				{
+				   "_index": "products",
+				   "_type": "mobile",
+				   "_id": "1",
+				   "_version": 5,		 - And the version get changed
+				   "result": "updated",  - The change is accepted 
+				   "_shards":    {
+					  "total": 2,
+					  "successful": 1,
+					  "failed": 0
+				   },
+				   "_seq_no": 4,
+				   "_primary_term": 2
+				}
+
+			
+			To check in retrieve call 
+			
+				Method :- GET  
+				URL - 'http://localhost:9200/products/mobile/1?pretty
+				
+				Result
+					{
+					   "_index": "products",
+					   "_type": "mobile",
+					   "_id": "1",
+					   "_version": 5,
+					   "found": true,
+					   "_source":    {
+						  "name": "MI 4",
+						  "carema": "12MP",
+						  "storage": "125GB",
+						  "display": "4.7inche",
+						  "battery": "1,960mAH",
+						  "price": 15000,
+						  "reviews":       [
+							 "Its easy to use",
+							 "I am happy to get this",
+							 "Idiot phone"
+						  ],
+						  "color": "black"
+					   }
+					}
+					
+	Now we are going to update the value of price using script 
+	
+	Here we need to specify the document ID whome we are going to update 
+		Method :- POST  
+		URL - 'http://localhost:9200/products/mobile/1/_update?pretty
+		
+		{
+			"script":"ctx._source.price *=2"  - Script tells the document-> source item - >the price attribute
+		}
+		
+		Result
+			{
+			   "_index": "products",
+			   "_type": "mobile",
+			   "_id": "1",
+			   "_version": 7,
+			   "result": "updated",
+			   "_shards":    {
+				  "total": 2,
+				  "successful": 1,
+				  "failed": 0
+			   },
+			   "_seq_no": 6,
+			   "_primary_term": 2
+			}
+			
+10. To delete the document we need to specify the document ID and method type will be delete 
+	
+		Method :- Delete   
+		URL - 'http://localhost:9200/products/mobile/1?pretty
+		
+		Result
+		{
+		   "_index": "products",
+		   "_type": "mobile",
+		   "_id": "1",
+		   "_version": 2,
+		   "result": "deleted",   it says the document get deleted
+		   "_shards":    {
+			  "total": 2,
+			  "successful": 1,
+			  "failed": 0
+		   },
+		   "_seq_no": 1,
+		   "_primary_term": 2
+		}
+		
+		Similarly if we want to delete the whole index then we need to specify the index name in resource URL
+		
+			Method :- Delete   
+			URL - 'http://localhost:9200/products
+			
+
+11. Bulk operation
+
+	a. To retrieve the document in Bulk then we need to specify the '_mget' in resource URL
+	
+	Method :- POST 
+	URL : http://localhost:9200/_mget?pretty
+	
+	Here we didn't specify the index and type of document. those set of information we need to provide in request
+	
+		{
+			"docs":[
+				{
+					"_index":"products"
+					"_type":"mobile"
+					"_id":1
+				},
+				{
+					"_index":"products"
+					"_type":"mobile"
+					"_id":2
+				}
+			]
+			
+		}
+		
+		This will return the docs under product index and mobile types.
+		
+	c. Similarly by specifying the index and type in resource url we can retrieve multiple documents 
+		
+		Method :- POST 
+		URL : http://localhost:9200/products/mobile/_mget?pretty
+	
+		Here we didn't specify the index and type of document. those set of information we need to provide in request
+	
+		{
+			"ids":["1","2","3"]
+			
+		}
+		
+		
+	
+	d. Similarly If we can specify the source attribute to return 
+	
+		Method :- POST 
+		URL : http://localhost:9200/_mget?pretty
+		
+		{
+			"docs":[
+				{
+					"_index":"products",
+					"_type":"mobile",
+					"_id":"1",
+					"_source":["name","price"]
+				},
+				{
+					"_index":"products",
+					"_type":"mobile",
+					"_id":"2"
+					
+				}
+				
+			]
+			
+		}
+		
+	e. We want to create a customer in bulk. To do so we can perform the task in following manner
+	
+		1. By specifing the index and type in request body  
+		
+		Method :- POST 
+		URL : http://localhost:9200/_bulk?pretty
+		
+		{"index" : {"_index":"customer","_type":"salling","_id":1}}
+		{"name": "Carlson Barnes", "age": 34}
+		{"index" : {"_index":"customer","_type":"salling","_id":2}}
+		{"name": "Sheppard Stein","age": 39}
+		{"index" : {"_index":"customer","_type":"salling","_id":3}}
+		{"name": "Sheppard Stein Barnes","age": 50}
+	
+		2. If we specify the index and type in resource URL in  we don't need to specify those in index
+	
+		Method :- POST 
+		URL : http://localhost:9200/customer/salling/_bulk?pretty
+		
+		{"index":{}}
+		{"name": "Nixon Singleton","age": 36}
+		{"index":{}}
+		{"name": "Sharron Sosa","age": 33}
+		{"index":{}}
+		{"name": "Kendra Cabrera","age": 24}
+		{"index":{}}
+		{"name": "Young Robinson","age": 20}
+		
+		
+	
+	
+	{
+	"query":{
+		"bool":{
+			"must":[
+				{	"match":{"age":"70"}}
+				]
+		}
+	},
+	"from":4,
+	"size":4
+}
+
+			   
